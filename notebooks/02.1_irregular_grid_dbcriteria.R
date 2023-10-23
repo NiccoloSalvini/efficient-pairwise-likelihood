@@ -8,3 +8,6 @@ W_kernel <- spkernelnb(coordinates = nyc_boroughs_coords, alpha = 1.5, knn = 5)
 
 # Display summary of neighborhood matrix
 summary(W_kernel)
+
+
+## fare

@@ -1,6 +1,10 @@
+library(tictoc)
+
 # First, create a sample dataset of geo-referenced points
 set.seed(1)
-n_points <- 20
+n_points <- 100
+treshold_dist <- 2
+
 
 lat <- runif(n_points, 40, 45)
 lon <- runif(n_points, -80, -75)
@@ -10,7 +14,11 @@ points_df <- data.frame(lat = lat, lon = lon)
 # Calculate the pairwise distances between all the points
 library(geosphere)
 
-dist_matrix <- distm(points_df[, c("lon", "lat")], fun = distHaversine)
+mean_dist <- mean(dist_matrix[lower.tri(dist_matrix)])
+
+# Set distances greater than 2 times the mean to Inf
+dist_matrix[dist_matrix > discard_treshold * mean_dist] <- Inf
+
 
 # Replace the diagonal with an arbitrarily large number
 diag(dist_matrix) <- Inf
@@ -19,6 +27,7 @@ diag(dist_matrix) <- Inf
 # Keep track of which points have already been matched
 matches <- data.frame(from = numeric(0), to = numeric(0))
 
+tic()
 while (nrow(matches) < n_points / 2) {
   # Find the indices of the minimum value
   min_index <- which(dist_matrix == min(dist_matrix), arr.ind = TRUE)
@@ -41,6 +50,7 @@ while (nrow(matches) < n_points / 2) {
     dist_matrix[, closest_indices[2]] <- Inf
   }
 }
+toc()
 
 # Plot the matched pairs with ggplot2
 library(ggplot2)
@@ -125,3 +135,7 @@ match_nearest_points <- function(lat, lon, plot_output = FALSE, dist_type = "dis
 
 
 
+## calcolo distanzza media, se eccede 2/3 volte viua
+## prendere i massimi e toglierli
+## prendo punto da coppia (medio) e poi faccio buffer circolare per escludere coppie vicine
+## su griglia regolare
