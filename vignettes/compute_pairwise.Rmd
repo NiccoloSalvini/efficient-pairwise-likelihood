@@ -1,0 +1,88 @@
+## compute pairwise
+
+To compute the pairwise likelihood parameters and score using the C-KDTLL approach, we first need to define the spatial error model (SEM) and the likelihood function. The SEM assumes that the response variable at location i is a linear combination of a mean function and a spatially correlated error term:
+
+$$
+y_i = \beta_0 + \beta_{1}x_{i1} + \beta_{2}x_{i2} + ... + \beta_{p}x_{ip} + \epsilon_i
+$$
+
+where $\beta_0$ is the intercept, $\beta_1$ to $\beta_p$ are the slope coefficients, and $\epsilon_i$ is a spatially correlated error term with mean 0 and variance $\sigma^2$. The covariance between the errors at locations i and j is given by:
+
+$$
+Cov(\epsilon_i,\epsilon_j) = \frac{\psi}{d_{ij}^\kappa}
+$$
+
+where $d_{ij}$ is the distance between locations i and j, $\kappa$ is a smoothing parameter, and $\psi$ is a scale parameter.
+
+The pairwise likelihood function is then defined as the product of the conditional likelihoods for each pair of spatially adjacent locations:
+
+$$
+L(\beta, \psi | y) = \prod_{(i,j)} L_{ij}(\beta,\psi | y)
+$$
+
+where $L_{ij}(\beta,\psi | y)$ is the conditional likelihood for the pair of observations at locations i and j. The closed-form expression for the pairwise likelihood parameters can be obtained by maximizing this function.
+
+Here's the R code to compute the pairwise likelihood parameters and score using the C-KDTLL approach:
+
+```{r}
+sem <- function(X, beta, psi, kappa, dist) { 
+  n <- nrow(X)
+  Sigma <- matrix(0, n, n) 
+  for (i in 1:n) {
+    for (j in 1:n) { 
+      Sigma[i,j] <- psi / (dist[i,j]^kappa) 
+      } 
+    } 
+  Sigma <- Sigma + diag(n) * 1e-6
+  y <- X %% beta
+  ll <- -0.5 * log(det(Sigma)) - 0.5 * t(y) %% solve(Sigma) %% y - 0.5 * n * log(2*pi) 
+  return(ll)
+}
+```
+
+
+Define the function to compute the closed-form expression for the pairwise likelihood parameters
+```{r}
+pairwise_params <- function(X, y, radius, kappa, verbose=F) {
+  n <- nrow(X) 
+  d <- as.numeric(as.matrix(dist(X))[,1])
+  d[d<=0] <- NA 
+  which(d <= radius) 
+  nn <- nn2(X, X, treetype = "kd", searchtype = "radius", k= 2, radius = radius) 
+  couplings <- list() 
+  for (i in seq_len(nrow(nn$nn.idx))) { 
+    point1_index <- nn$nn.idx[i,1] 
+    point2_index <- nn$nn.idx[i,2]
+    if (point1_index %in% unlist(couplings) || point2_index %in% unlist(couplings)) { 
+      next 
+    } else { # Pair the two points
+        point1 <- X[point1_index, ] 
+        point2 <- X[point2_index, ] 
+        couplings[[length(couplings) + 1]] <- list(point1_index, point2_index) 
+    }
+  }
+}
+```
+
+Compute the pairwise likelihood parameters
+
+```{r}
+
+alpha1 <- sum(X^2) 
+alpha2 <- t(alpha1) 
+alpha3 <- t(X) %% y 
+alpha4 <- t(X) %% t(X) %% y
+alpha5 <- t(X) %% X 
+alpha6 <- t(y) %*% y 
+numerator <- 2 * (alpha6 - alpha4^2 / alpha2 + alpha4^2 * alpha5 / alpha2^2 - alpha3^2 * alpha5 / alpha1^2)
+denominator <- alpha2 - 2 * alpha3^2 / alpha1 + alpha5^2 / alpha1^2
+beta_hat <- (numerator / denominator - sqrt(numerator^2 / denominator^2 - 8 * alpha5 / denominator)) / (4 * alpha5 / denominator) psi_hat <- (alpha6 - beta_hat * alpha4) / (n - 2 - n * kappa) # estimate of psi 
+sigma2 <- (alpha2 + beta_hat^2 * alpha1 - 2 * beta_hat * alpha3 - 2 * psi_hat * alpha6 - 2 * psi_hat * beta_hat^2 * alpha5 + 2 * psi_hat * beta_hat * alpha4) / (2 * (n - 2 - n * kappa) * (1 - psi_hat^2)) # estimate of sigma^2
+```
+
+
+Compute the score
+X_dist <- matrix(0, n, n) for (i in 1:n) { for (j in 1:n) { X_dist[i,j] <- sqrt(sum((X[i,] - X[j,])^2)) } } Sigma <- matrix(0, n, n) for (i in 1:n) { for (j in 1:n) { Sigma[i,j] <- psi_hat / (X_dist[i,j]^kappa) } } Sigma <- Sigma + diag(n) * 1e-6 # Add a small constant to the diagonal for numerical stability invSigma <- solve(Sigma) gradient_beta <- invSigma %% t(X) %% (y - X %% beta_hat) gradient_psi <- -0.5 * sum(diag(invSigma^2)) + 0.5 * sum(invSigma * outer(y - X %% beta_hat, y - X %*% beta_hat)) gradient_kappa <- -0.5 * sum(Sigma * (X_dist^kappa) * log(X_dist)) score <- c(gradient_beta, gradient_psi, gradient_kappa) names(score) <- c(paste0("beta", 0:ncol(X)), "psi", "kappa") if (verbose) { cat("beta_hat:\n") print(beta_hat) cat("psi_hat:\n") print(psi_hat) cat("sigma2:\n") print(sigma2) cat("score:\n") print(score) } return(list(beta_hat = beta_hat, psi_hat = psi_hat, sigma2 = sigma2, score = score)) }
+
+Example usage
+X <- data.frame(x, y) y <- rnorm(nrow(X)) radius <- initial_radius <- 0.01881959 kappa <- 1 params <- pairwise_params(X, y, radius, kappa, verbose = TRUE)
