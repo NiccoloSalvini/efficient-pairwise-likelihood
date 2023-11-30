@@ -273,6 +273,7 @@ library(scales)
 library(ggetho)
 library(patchwork)
 library(ggplot2)
+library(stringr )
 
 coupling_times_fulllikelihood = read_rds(here("data", "coupling_times_fulllikelihood.rds"))
 
@@ -340,7 +341,7 @@ ct_on_same_scale = ggplot(tibble(comput_complexity) %>%
            time = lubridate::dmilliseconds(time)
          ), aes(x = expr, y =  time/100000, col =  type)) +
   geom_point() +
-  geom_smooth(method = "glm", se = TRUE,  formula = y ~ x, method.args = list(family = gaussian(link = 'log')), alpha = 3) +
+  geom_smooth(method = "glm", se = FALSE,  formula = y ~ x, method.args = list(family = gaussian(link = 'log')), alpha = 3) +
   scale_y_seconds(limits = c(0,30000)) +
   labs(
     title = "PL vs. FL",
@@ -348,4 +349,4 @@ ct_on_same_scale = ggplot(tibble(comput_complexity) %>%
   )
 
 
-ggsave(plot = ct_on_same_scaele,filename = here("img","plots" , "ct_on_same_scale.pmg"))
+ggsave(plot = ct_on_same_scale,filename = here("img","plots" , "ct_on_same_scale.png"))

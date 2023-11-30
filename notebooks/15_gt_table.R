@@ -2,6 +2,7 @@ library(readr)
 library(writexl)
 library(gt)
 library(tidyr)
+library(dplyr)
 
 path_50 = "/Users/niccolo/Desktop/r_projects/efficient-pairwise-likelihood/data/simres_50it_2xdata.rds"
 path_100 =  "~/Desktop/r_projects/efficient-pairwise-likelihood/data/simres_100it_2xdata.rds"
@@ -96,6 +97,11 @@ simres_tab = simres %>%
   cols_align(
     align ="center",
     columns = everything()
+  ) %>%
+  tab_footnote(
+    footnote = md("We still report ψ&#x0302;<sub>FL</sub> for completness purposes even though it can not be compared with ψ&#x0302;<sub>PL</sub>"),
+    locations = cells_column_labels(columns = psi_hat_fullLik),
+    placement = c("auto", "right", "left")
   )
 
 gtsave(data = simres_tab, filename = here("img", "tables", "simres_tab_100it_2xdata.png"))
@@ -189,6 +195,11 @@ simres_buff_tab = simres_buff %>%
   cols_align(
     align ="center",
     columns = everything()
+  ) %>%
+  tab_footnote(
+    footnote = "test",
+    locations = cells_column_labels(columns = psi_hat_fullLik),
+    placement = c("auto", "right", "left")
   )
 
 gtsave(data = simres_buff_tab, filename = here("img", "tables", "simres_buff_tab.png"))
